@@ -24,9 +24,10 @@
             <ul id="messages"></ul>
         </div>
         <div class='h-10 p-2 bg-gray-800 text-black flex'>
-            <form id="form" action="">
+            <form class="flex w-full" id="form" action="">
             <input id="input" type="text" class='flex-grow mr-2'>
-            <button class='flex-shrink-0 px-2 text-white '>Send</button>
+            <button class='px-2 text-white '>Send</button>
+            <!-- <button class="px-2 text-white" id="toggle-btn">Disconnect</button> -->
             </form>
         </div>
     </div>
@@ -35,9 +36,21 @@
 <script>
   const socket = io('http://localhost:3000');
 
-  const form = document.getElementById('form');
-  const input = document.getElementById('input');
-  const messages = document.getElementById('messages');
+const form = document.getElementById('form');
+const input = document.getElementById('input');
+const messages = document.getElementById('messages');
+// const toggleButton = document.getElementById('toggle-btn');
+
+// toggleButton.addEventListener('click', (e) => {
+//     e.preventDefault();
+//   if (socket.connected) {
+//     toggleButton.innerText = 'Connect';
+//     socket.disconnect();
+//   } else {
+//     toggleButton.innerText = 'Disconnect';
+//     socket.connect();
+//   }
+// });
 
   form.addEventListener('submit', function(e) {
     e.preventDefault();
