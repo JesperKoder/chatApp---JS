@@ -6,6 +6,16 @@
     <link rel="stylesheet" href="output.css">
     <script src="/socket.io/socket.io.js"></script>
     <title>Chat</title>
+    <style>
+        li {
+            background-color: rgb(92, 92, 243);
+            color: white;
+            padding: 5px;
+            margin: 5px;
+            border: 1 round rgb(92, 92, 243);
+            border-radius: 5px;
+        }
+    </style>
 </head>
 <body>
     <!-- <h1 class="text-3xl font-bold text-center text-gray-800">Chat</h1> -->
@@ -14,8 +24,8 @@
             <ul id="messages"></ul>
         </div>
         <div class='h-10 p-2 bg-gray-800 text-black flex'>
-            <input id="input" type="text" class='flex-grow mr-2'></input>
             <form id="form" action="">
+            <input id="input" type="text" class='flex-grow mr-2'>
             <button class='flex-shrink-0 px-2 text-white '>Send</button>
             </form>
         </div>
@@ -24,6 +34,25 @@
 
 <script>
   const socket = io('http://localhost:3000');
+
+  const form = document.getElementById('form');
+  const input = document.getElementById('input');
+  const messages = document.getElementById('messages');
+
+  form.addEventListener('submit', function(e) {
+    e.preventDefault();
+    if (input.value) {
+      socket.emit('chat message', input.value);
+      input.value = '';
+    }
+  });
+
+  socket.on('chat message', (msg) => {
+    const item = document.createElement('li');
+    item.textContent = msg;
+    messages.appendChild(item);
+    window.scrollTo(0, document.body.scrollHeight);
+  });
 </script>
 </body>
 </html>
