@@ -5,6 +5,9 @@ import { fileURLToPath } from 'node:url';
 import { dirname, join } from 'node:path';
 import sqlite3 from 'sqlite3';
 import { open } from 'sqlite';
+import { availableParallelism } from "node:os";
+import cluster from "node:cluster";
+import { createAdapter, setupPrimary } from "@socket.io/cluster-adapter";
 
 const db = await open({
     filename: 'chat.db',
@@ -19,12 +22,32 @@ await db.exec(`
     );
   `);
 
-const app = express();
-const server = createServer(app);
+  if (cluster.isPrimary) {
+    const numCPUs = availableParallelism();
+    // create one worker per available core
+    for (let i = 0; i < numCPUs; i++) {
+      cluster.fork({
+        PORT: 3000 + i
+      });
+    }
+    
+    // set up the adapter on the primary thread
+    setupPrimary();
+  } else {
+    const app = express();
+    const server = createServer(app);
+    const io = new Server(server, {
+      connectionStateRecovery: {},
+      // set up the adapter on each worker thread
+      adapter: createAdapter()
+    });
 
-const io = new Server(server, {
-    connectionStateRecovery: {}
+const port = process.env.PORT;
+
+server.listen(port, () => {
+    console.log(`Server running at http://localhost:${port}`);
 });
+}
 
 const __dirname = dirname(fileURLToPath(import.meta.url));
 
@@ -44,16 +67,21 @@ io.on('connection', (socket) => {
 
 io.on('connection', async (socket) => {
     socket.on('chat message', async (msg) => {
-        let result;
+    let result;
     try {
-      // store the message in the database
-      result = await db.run('INSERT INTO messages (content) VALUES (?)', msg);
+      result = await db.run('INSERT INTO messages (content, client_offset) VALUES (?, ?)', msg, clientOffset);
     } catch (e) {
-      // TODO handle the failure
+      if (e.errno === 19) /* SQLITE_CONSTRAINT */ {
+      // The message was already inserted, so we notify the client
+      callback();
+    } else {
+      // Client retryed sending the same message
+    }
       return;
     }
-    // include the offset with the message
     io.emit('chat message', msg, result.lastID);
+    // Acknowledge the event
+    callback();
     });
 
     if(!socket.recovered) {
@@ -71,6 +99,3 @@ io.on('connection', async (socket) => {
   });
 
 
-server.listen(3000, () => {
-    console.log('Server running on PORT:3000');
-});
