@@ -42,10 +42,32 @@ io.on('connection', (socket) => {
   })
 });
 
-io.on('connection', (socket) => {
-    socket.on('chat message', (msg) => {
-      io.emit('chat message', msg);
+io.on('connection', async (socket) => {
+    socket.on('chat message', async (msg) => {
+        let result;
+    try {
+      // store the message in the database
+      result = await db.run('INSERT INTO messages (content) VALUES (?)', msg);
+    } catch (e) {
+      // TODO handle the failure
+      return;
+    }
+    // include the offset with the message
+    io.emit('chat message', msg, result.lastID);
     });
+
+    if(!socket.recovered) {
+        try {
+            await db.each('SELECT id, content FROM messages WHERE id > ?',
+                [socket.handshake.auth.serverOffset || 0],
+                (err, row) => {
+                    socket.emit('chat message', row.content, row.id);
+                }
+            )
+        } catch (e) {
+            // Some error
+        }
+    }
   });
 
 
